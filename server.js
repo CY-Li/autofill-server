@@ -105,7 +105,7 @@ app.post('/upload', validateToken, upload.single('file'), async (req, res) => {
 
     // Initialize Gemini API
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: 'gemini-pro-vision' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
 
     // Read file and convert to base64
     const fileBuffer = fs.readFileSync(req.file.path);
