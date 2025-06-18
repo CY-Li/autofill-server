@@ -176,8 +176,50 @@ app.post('/upload', validateToken, upload.single('file'), async (req, res) => {
     const fileBuffer = fs.readFileSync(req.file.path);
     const base64Image = fileBuffer.toString('base64');
 
+    // Enhanced prompt for flexible document analysis
+    const analysisPrompt = `請仔細分析這份文件，並提取所有可能的資訊。
+
+請以結構化JSON格式回傳結果，格式如下：
+{
+  "documentType": "文件類型（如：身分證、護照、駕照、發票、收據、名片、證書、表格等）",
+  "confidence": 分析信心度（0-100的數字）,
+  "extractedData": {
+    // 請根據文件內容自由定義Key-Value對
+    // 例如：
+    // "姓名": "張三",
+    // "身分證號": "A123456789",
+    // "出生日期": "1990-01-01",
+    // "地址": "台北市信義區信義路五段7號",
+    // "電話": "0912345678",
+    // "電子郵件": "example@email.com",
+    // "公司名稱": "某某公司",
+    // "職位": "工程師",
+    // "金額": "1000",
+    // "貨幣": "TWD",
+    // "發票號碼": "AB-12345678",
+    // "發票日期": "2024-01-01",
+    // "統一編號": "12345678",
+    // "條碼": "1234567890123",
+    // 等等...
+  },
+  "rawText": "原始文字內容（如果無法結構化）",
+  "notes": "任何額外的分析註解或說明"
+}
+
+重要說明：
+1. 請根據文件內容自由定義Key-Value對，不要受限於預設的欄位名稱
+2. 使用中文作為Key名稱，讓使用者容易理解
+3. 只包含實際在文件中找到的資訊，如果某個欄位沒有找到請省略
+4. 對於敏感資訊（如卡號），請進行適當遮蔽
+5. 確保回傳的是有效的JSON格式
+6. 如果無法識別文件類型，請標記為 "未知文件"
+7. 分析信心度表示對整體識別結果的信心程度
+8. 在extractedData中，請盡可能詳細地提取所有可見的資訊
+
+請開始分析文件：`;
+
     // Call Gemini API using REST
-    const geminiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`, {
+    const geminiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro-vision:generateContent?key=${apiKey}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -187,48 +229,7 @@ app.post('/upload', validateToken, upload.single('file'), async (req, res) => {
           {
             parts: [
               {
-                text: `Analyze this document and extract all information in a structured JSON format. 
-                
-Please return the results as a valid JSON object with the following structure:
-{
-  "documentType": "type of document (e.g., ID card, invoice, receipt, form, etc.)",
-  "personalInfo": {
-    "fullName": "extracted full name if found",
-    "firstName": "first name if found",
-    "lastName": "last name if found",
-    "dateOfBirth": "date of birth if found"
-  },
-  "contactInfo": {
-    "email": "email address if found",
-    "phone": "phone number if found",
-    "mobile": "mobile number if found"
-  },
-  "addressInfo": {
-    "street": "street address if found",
-    "city": "city if found",
-    "state": "state/province if found",
-    "zipCode": "zip/postal code if found",
-    "country": "country if found"
-  },
-  "financialInfo": {
-    "amount": "amount if found",
-    "currency": "currency if found",
-    "accountNumber": "account number if found",
-    "cardNumber": "card number if found (masked for security)"
-  },
-  "dates": {
-    "issueDate": "issue date if found",
-    "expiryDate": "expiry date if found",
-    "createdDate": "created date if found"
-  },
-  "otherInfo": {
-    "documentNumber": "document number if found",
-    "organization": "organization/company if found",
-    "notes": "any other relevant information"
-  }
-}
-
-Only include fields that are actually found in the document. If a field is not found, omit it from the JSON. Ensure the response is valid JSON that can be parsed.`
+                text: analysisPrompt
               },
               {
                 inline_data: {
@@ -238,7 +239,13 @@ Only include fields that are actually found in the document. If a field is not f
               }
             ]
           }
-        ]
+        ],
+        generationConfig: {
+          temperature: 0.1,
+          topK: 32,
+          topP: 1,
+          maxOutputTokens: 4096,
+        }
       })
     });
 
@@ -267,6 +274,7 @@ Only include fields that are actually found in the document. If a field is not f
       // If parsing fails, create a structured object with raw text
       parsedResults = {
         documentType: "Unknown",
+        confidence: 0,
         rawText: text,
         otherInfo: {
           notes: "Raw extracted text (JSON parsing failed)"
