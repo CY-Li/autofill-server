@@ -270,7 +270,7 @@ app.post('/upload', validateToken, upload.single('file'), async (req, res) => {
       console.log('No active SSE connection found for token:', req.query.token);
     }
 
-    // Clean up connections
+    // Clean up connections after sending results
     if (ws) {
       wsConnections.delete(req.query.token);
       ws.close();
