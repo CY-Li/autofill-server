@@ -20,7 +20,7 @@ RUN mkdir -p uploads public && \
 USER node
 
 # Expose port
-EXPOSE 3000
+EXPOSE 8080
 
 # Start the app
 CMD ["npm", "start"] 

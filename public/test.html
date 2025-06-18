@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Server Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .success { color: green; }
+        .error { color: red; }
+        .info { color: blue; }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            cursor: pointer;
+        }
+        #results {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #f5f5f5;
+            border-radius: 5px;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <h1>Autofill Server Test Page</h1>
+    
+    <div class="test-section">
+        <h2>Health Check</h2>
+        <button onclick="testHealth()">Test Health Endpoint</button>
+        <div id="health-result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>WebSocket Test</h2>
+        <button onclick="testWebSocket()">Test WebSocket Connection</button>
+        <div id="ws-result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>SSE Test</h2>
+        <button onclick="testSSE()">Test SSE Connection</button>
+        <div id="sse-result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Token Registration Test</h2>
+        <button onclick="testTokenRegistration()">Test Token Registration</button>
+        <div id="token-result"></div>
+    </div>
+
+    <div id="results"></div>
+
+    <script>
+        const serverUrl = window.location.origin;
+        let ws = null;
+        let eventSource = null;
+
+        function log(message, type = 'info') {
+            const results = document.getElementById('results');
+            const timestamp = new Date().toLocaleTimeString();
+            results.textContent += `[${timestamp}] ${type.toUpperCase()}: ${message}\n`;
+            results.scrollTop = results.scrollHeight;
+        }
+
+        async function testHealth() {
+            try {
+                log('Testing health endpoint...');
+                const response = await fetch(`${serverUrl}/health`);
+                const data = await response.json();
+                document.getElementById('health-result').innerHTML = 
+                    `<span class="success">✓ Health check passed</span><br>
+                     Status: ${data.status}<br>
+                     Connections: ${data.connections}<br>
+                     Timestamp: ${data.timestamp}`;
+                log('Health check successful', 'success');
+            } catch (error) {
+                document.getElementById('health-result').innerHTML = 
+                    `<span class="error">✗ Health check failed: ${error.message}</span>`;
+                log(`Health check failed: ${error.message}`, 'error');
+            }
+        }
+
+        function testWebSocket() {
+            try {
+                log('Testing WebSocket connection...');
+                const testToken = 'test-ws-' + Date.now();
+                const wsUrl = serverUrl.replace('http', 'ws') + `?token=${testToken}`;
+                
+                ws = new WebSocket(wsUrl);
+                
+                ws.onopen = () => {
+                    document.getElementById('ws-result').innerHTML = 
+                        `<span class="success">✓ WebSocket connected successfully</span>`;
+                    log('WebSocket connected', 'success');
+                };
+                
+                ws.onmessage = (event) => {
+                    log(`WebSocket message: ${event.data}`, 'info');
+                };
+                
+                ws.onclose = (event) => {
+                    document.getElementById('ws-result').innerHTML = 
+                        `<span class="info">WebSocket closed: ${event.code} ${event.reason}</span>`;
+                    log(`WebSocket closed: ${event.code} ${event.reason}`, 'info');
+                };
+                
+                ws.onerror = (error) => {
+                    document.getElementById('ws-result').innerHTML = 
+                        `<span class="error">✗ WebSocket error: ${error}</span>`;
+                    log(`WebSocket error: ${error}`, 'error');
+                };
+            } catch (error) {
+                document.getElementById('ws-result').innerHTML = 
+                    `<span class="error">✗ WebSocket test failed: ${error.message}</span>`;
+                log(`WebSocket test failed: ${error.message}`, 'error');
+            }
+        }
+
+        function testSSE() {
+            try {
+                log('Testing SSE connection...');
+                const testToken = 'test-sse-' + Date.now();
+                const sseUrl = `${serverUrl}/sse/${testToken}`;
+                
+                eventSource = new EventSource(sseUrl);
+                
+                eventSource.onopen = () => {
+                    document.getElementById('sse-result').innerHTML = 
+                        `<span class="success">✓ SSE connected successfully</span>`;
+                    log('SSE connected', 'success');
+                };
+                
+                eventSource.onmessage = (event) => {
+                    log(`SSE message: ${event.data}`, 'info');
+                };
+                
+                eventSource.onerror = (error) => {
+                    document.getElementById('sse-result').innerHTML = 
+                        `<span class="error">✗ SSE error: ${error}</span>`;
+                    log(`SSE error: ${error}`, 'error');
+                };
+            } catch (error) {
+                document.getElementById('sse-result').innerHTML = 
+                    `<span class="error">✗ SSE test failed: ${error.message}</span>`;
+                log(`SSE test failed: ${error.message}`, 'error');
+            }
+        }
+
+        async function testTokenRegistration() {
+            try {
+                log('Testing token registration...');
+                const testToken = 'test-token-' + Date.now();
+                const expires = Date.now() + 300000; // 5 minutes
+                
+                const response = await fetch(`${serverUrl}/register-token`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        token: testToken,
+                        expires: expires
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    document.getElementById('token-result').innerHTML = 
+                        `<span class="success">✓ Token registered successfully</span><br>
+                         Token: ${testToken}<br>
+                         Expires: ${new Date(expires).toLocaleString()}`;
+                    log('Token registration successful', 'success');
+                } else {
+                    document.getElementById('token-result').innerHTML = 
+                        `<span class="error">✗ Token registration failed: ${data.message}</span>`;
+                    log(`Token registration failed: ${data.message}`, 'error');
+                }
+            } catch (error) {
+                document.getElementById('token-result').innerHTML = 
+                    `<span class="error">✗ Token registration test failed: ${error.message}</span>`;
+                log(`Token registration test failed: ${error.message}`, 'error');
+            }
+        }
+
+        // Clean up connections when page unloads
+        window.addEventListener('beforeunload', () => {
+            if (ws) ws.close();
+            if (eventSource) eventSource.close();
+        });
+    </script>
+</body>
+</html> 

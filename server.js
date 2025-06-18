@@ -6,7 +6,9 @@ const fs = require('fs');
 const WebSocket = require('ws');
 
 const app = express();
-const port = process.env.PORT || 3000;
+const port = process.env.PORT || 8080; // Zeabur uses port 8080
+
+console.log(`Starting server on port ${port}`);
 
 // Create WebSocket server
 const wss = new WebSocket.Server({ noServer: true });
@@ -16,6 +18,9 @@ const validTokens = new Map();
 
 // Store WebSocket connections by token
 const wsConnections = new Map();
+
+// Store SSE connections by token
+const sseConnections = new Map();
 
 // WebSocket connection handling
 wss.on('connection', (ws, request) => {
@@ -127,12 +132,26 @@ app.post('/register-token', (req, res) => {
   }
 
   validTokens.set(token, { expires });
+  console.log(`Token registered: ${token}`);
   res.json({ message: 'Token registered successfully' });
+});
+
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.json({ 
+    status: 'ok', 
+    timestamp: new Date().toISOString(),
+    connections: wsConnections.size
+  });
 });
 
 // Routes
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'upload.html'));
+});
+
+app.get('/test', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'test.html'));
 });
 
 app.get('/upload', validateToken, (req, res) => {
@@ -205,7 +224,7 @@ app.post('/upload', validateToken, upload.single('file'), async (req, res) => {
     // Send results via WebSocket if connection exists
     const ws = wsConnections.get(req.query.token);
     console.log('Looking for WebSocket connection for token:', req.query.token);
-    console.log('Available connections:', Array.from(wsConnections.keys()));
+    console.log('Available WebSocket connections:', Array.from(wsConnections.keys()));
     
     if (ws && ws.readyState === WebSocket.OPEN) {
       const message = JSON.stringify({
@@ -229,11 +248,39 @@ app.post('/upload', validateToken, upload.single('file'), async (req, res) => {
       }
     }
 
-    // Also clean up WebSocket connection
+    // Also try SSE connection
+    const sse = sseConnections.get(req.query.token);
+    console.log('Available SSE connections:', Array.from(sseConnections.keys()));
+    
+    if (sse) {
+      const message = JSON.stringify({
+        type: 'SCAN_RESULTS',
+        results: text
+      });
+      
+      console.log('Sending results via SSE:', message.substring(0, 100) + '...');
+      
+      try {
+        sse.write(`data: ${message}\n\n`);
+        console.log('Results sent via SSE successfully');
+      } catch (error) {
+        console.error('Error sending SSE message:', error);
+      }
+    } else {
+      console.log('No active SSE connection found for token:', req.query.token);
+    }
+
+    // Clean up connections
     if (ws) {
       wsConnections.delete(req.query.token);
       ws.close();
       console.log('WebSocket connection cleaned up');
+    }
+    
+    if (sse) {
+      sseConnections.delete(req.query.token);
+      sse.end();
+      console.log('SSE connection cleaned up');
     }
 
     res.json({
@@ -253,6 +300,37 @@ app.post('/upload', validateToken, upload.single('file'), async (req, res) => {
   }
 });
 
+// SSE endpoint for results
+app.get('/sse/:token', (req, res) => {
+  const token = req.params.token;
+  
+  if (!token) {
+    return res.status(400).json({ message: 'Token is required' });
+  }
+
+  // Set SSE headers
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+    'Connection': 'keep-alive',
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'Cache-Control'
+  });
+
+  // Send initial connection message
+  res.write(`data: ${JSON.stringify({ type: 'CONNECTION_CONFIRMED', message: 'Connected successfully' })}\n\n`);
+
+  // Store connection
+  sseConnections.set(token, res);
+  console.log(`SSE connected for token: ${token}`);
+
+  // Handle client disconnect
+  req.on('close', () => {
+    sseConnections.delete(token);
+    console.log(`SSE disconnected for token: ${token}`);
+  });
+});
+
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error('Error:', err);
@@ -265,11 +343,36 @@ app.use((err, req, res, next) => {
 // Create HTTP server
 const server = app.listen(port, () => {
   console.log(`Server is running on port ${port}`);
+  console.log(`Health check available at: http://localhost:${port}/health`);
 });
 
 // Attach WebSocket server to HTTP server
 server.on('upgrade', (request, socket, head) => {
+  console.log('WebSocket upgrade request:', request.url);
   wss.handleUpgrade(request, socket, head, (ws) => {
     wss.emit('connection', ws, request);
+  });
+});
+
+// Graceful shutdown
+process.on('SIGTERM', () => {
+  console.log('SIGTERM received, shutting down gracefully...');
+  server.close(() => {
+    console.log('HTTP server closed');
+    wss.close(() => {
+      console.log('WebSocket server closed');
+      process.exit(0);
+    });
+  });
+});
+
+process.on('SIGINT', () => {
+  console.log('SIGINT received, shutting down gracefully...');
+  server.close(() => {
+    console.log('HTTP server closed');
+    wss.close(() => {
+      console.log('WebSocket server closed');
+      process.exit(0);
+    });
   });
 }); 
