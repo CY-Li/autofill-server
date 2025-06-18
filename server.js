@@ -225,8 +225,7 @@ Please return the results as a valid JSON object with the following structure:
     "documentNumber": "document number if found",
     "organization": "organization/company if found",
     "notes": "any other relevant information"
-  },
-  "rawText": "complete extracted text as fallback"
+  }
 }
 
 Only include fields that are actually found in the document. If a field is not found, omit it from the JSON. Ensure the response is valid JSON that can be parsed.`
