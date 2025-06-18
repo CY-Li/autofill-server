@@ -19,16 +19,42 @@ const wsConnections = new Map();
 
 // WebSocket connection handling
 wss.on('connection', (ws, request) => {
-  const token = new URL(request.url, 'http://localhost').searchParams.get('token');
+  console.log('WebSocket connection attempt from:', request.url);
   
-  if (token) {
-    wsConnections.set(token, ws);
-    console.log(`WebSocket connected for token: ${token}`);
+  try {
+    const url = new URL(request.url, `http://${request.headers.host}`);
+    const token = url.searchParams.get('token');
     
-    ws.on('close', () => {
-      wsConnections.delete(token);
-      console.log(`WebSocket disconnected for token: ${token}`);
-    });
+    console.log('Extracted token:', token);
+    
+    if (token) {
+      wsConnections.set(token, ws);
+      console.log(`WebSocket connected for token: ${token}`);
+      console.log('Total active connections:', wsConnections.size);
+      
+      // Send confirmation message
+      ws.send(JSON.stringify({
+        type: 'CONNECTION_CONFIRMED',
+        message: 'Connected successfully'
+      }));
+      
+      ws.on('close', () => {
+        wsConnections.delete(token);
+        console.log(`WebSocket disconnected for token: ${token}`);
+        console.log('Remaining connections:', wsConnections.size);
+      });
+      
+      ws.on('error', (error) => {
+        console.error(`WebSocket error for token ${token}:`, error);
+        wsConnections.delete(token);
+      });
+    } else {
+      console.log('No token provided, closing connection');
+      ws.close(1008, 'Token required');
+    }
+  } catch (error) {
+    console.error('Error parsing WebSocket URL:', error);
+    ws.close(1011, 'Invalid URL');
   }
 });
 
@@ -178,18 +204,36 @@ app.post('/upload', validateToken, upload.single('file'), async (req, res) => {
 
     // Send results via WebSocket if connection exists
     const ws = wsConnections.get(req.query.token);
+    console.log('Looking for WebSocket connection for token:', req.query.token);
+    console.log('Available connections:', Array.from(wsConnections.keys()));
+    
     if (ws && ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify({
+      const message = JSON.stringify({
         type: 'SCAN_RESULTS',
         results: text
-      }));
-      console.log('Results sent via WebSocket');
+      });
+      
+      console.log('Sending results via WebSocket:', message.substring(0, 100) + '...');
+      
+      ws.send(message, (error) => {
+        if (error) {
+          console.error('Error sending WebSocket message:', error);
+        } else {
+          console.log('Results sent via WebSocket successfully');
+        }
+      });
+    } else {
+      console.log('No active WebSocket connection found for token:', req.query.token);
+      if (ws) {
+        console.log('WebSocket state:', ws.readyState);
+      }
     }
 
     // Also clean up WebSocket connection
     if (ws) {
       wsConnections.delete(req.query.token);
       ws.close();
+      console.log('WebSocket connection cleaned up');
     }
 
     res.json({
