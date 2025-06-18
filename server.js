@@ -300,6 +300,10 @@ Only include fields that are actually found in the document. If a field is not f
         } else {
           console.log('Results sent via WebSocket successfully');
         }
+        // Close connection after sending
+        wsConnections.delete(req.query.token);
+        ws.close();
+        console.log('WebSocket connection closed after sending results');
       });
     } else {
       console.log('No active WebSocket connection found for token:', req.query.token);
@@ -323,24 +327,15 @@ Only include fields that are actually found in the document. If a field is not f
       try {
         sse.write(`data: ${message}\n\n`);
         console.log('Results sent via SSE successfully');
+        // Close SSE connection after sending
+        sseConnections.delete(req.query.token);
+        sse.end();
+        console.log('SSE connection closed after sending results');
       } catch (error) {
         console.error('Error sending SSE message:', error);
       }
     } else {
       console.log('No active SSE connection found for token:', req.query.token);
-    }
-
-    // Clean up connections after sending results
-    if (ws) {
-      wsConnections.delete(req.query.token);
-      ws.close();
-      console.log('WebSocket connection cleaned up');
-    }
-    
-    if (sse) {
-      sseConnections.delete(req.query.token);
-      sse.end();
-      console.log('SSE connection cleaned up');
     }
 
     res.json({

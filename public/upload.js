@@ -86,6 +86,10 @@ document.addEventListener('DOMContentLoaded', () => {
       // Show a message to close the window
       setTimeout(() => {
         showStatus('You can close this window now. Check the extension for results.', 'info');
+        // Auto-close window after 3 seconds
+        setTimeout(() => {
+          window.close();
+        }, 3000);
       }, 2000);
       
     } catch (error) {
