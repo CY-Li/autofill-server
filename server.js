@@ -219,7 +219,7 @@ app.post('/upload', validateToken, upload.single('file'), async (req, res) => {
 請開始分析文件：`;
 
     // Call Gemini API using REST
-    const geminiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro-vision:generateContent?key=${apiKey}`, {
+    const geminiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -263,24 +263,76 @@ app.post('/upload', validateToken, upload.single('file'), async (req, res) => {
 
     let text = geminiData.candidates[0].content.parts[0].text;
     
+    console.log('Raw Gemini response:', text.substring(0, 500) + '...');
+    
     // Try to parse the response as JSON
     let parsedResults;
     try {
       // Clean up the response text (remove markdown code blocks if present)
       text = text.replace(/```json\s*/g, '').replace(/```\s*$/g, '').trim();
       parsedResults = JSON.parse(text);
+      
+      console.log('Successfully parsed JSON response');
+      
+      // Validate the structure
+      if (!parsedResults.extractedData) {
+        console.log('No extractedData found, creating fallback structure');
+        // If the AI didn't follow our structure, try to convert it
+        if (parsedResults.documentType && typeof parsedResults === 'object') {
+          // Move all non-standard fields to extractedData
+          const extractedData = {};
+          for (const [key, value] of Object.entries(parsedResults)) {
+            if (!['documentType', 'confidence', 'rawText', 'notes'].includes(key)) {
+              extractedData[key] = value;
+            }
+          }
+          parsedResults = {
+            documentType: parsedResults.documentType || "未知文件",
+            confidence: parsedResults.confidence || 0,
+            extractedData: extractedData,
+            rawText: parsedResults.rawText || "",
+            notes: parsedResults.notes || ""
+          };
+        }
+      }
+      
     } catch (parseError) {
-      console.log('Failed to parse as JSON, treating as raw text');
+      console.log('Failed to parse as JSON, creating fallback structure');
+      console.log('Parse error:', parseError.message);
+      console.log('Raw text:', text);
+      
       // If parsing fails, create a structured object with raw text
       parsedResults = {
-        documentType: "Unknown",
+        documentType: "未知文件",
         confidence: 0,
+        extractedData: {
+          "原始文字": text
+        },
         rawText: text,
-        otherInfo: {
-          notes: "Raw extracted text (JSON parsing failed)"
-        }
+        notes: "JSON 解析失敗，顯示原始文字內容"
       };
     }
+
+    // Ensure we have the required structure
+    if (!parsedResults.extractedData) {
+      parsedResults.extractedData = {};
+    }
+    
+    if (!parsedResults.documentType) {
+      parsedResults.documentType = "未知文件";
+    }
+    
+    if (typeof parsedResults.confidence !== 'number') {
+      parsedResults.confidence = 0;
+    }
+    
+    console.log('Final parsed results structure:', {
+      documentType: parsedResults.documentType,
+      confidence: parsedResults.confidence,
+      extractedDataKeys: Object.keys(parsedResults.extractedData || {}),
+      hasRawText: !!parsedResults.rawText,
+      hasNotes: !!parsedResults.notes
+    });
 
     // Clean up uploaded file
     fs.unlinkSync(req.file.path);
