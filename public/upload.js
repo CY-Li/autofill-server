@@ -4,11 +4,18 @@ document.addEventListener('DOMContentLoaded', () => {
   const status = document.getElementById('status');
   const dragArea = document.querySelector('.drag-area');
 
-  // Get token from URL
+  // Get token and API key from URL
   const urlParams = new URLSearchParams(window.location.search);
   const token = urlParams.get('token');
+  const apiKey = urlParams.get('apiKey');
+  
   if (!token) {
     showStatus('Error: Invalid upload link', 'error');
+    return;
+  }
+
+  if (!apiKey) {
+    showStatus('Error: API key not found in URL', 'error');
     return;
   }
 
@@ -41,14 +48,8 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       showStatus('Uploading and analyzing document...', 'loading');
 
-      // Get API key from localStorage
-      const apiKey = localStorage.getItem('apiKey');
-      if (!apiKey) {
-        throw new Error('API key not found. Please save your API key in the extension first.');
-      }
-
       // Log API key for debugging (remove in production)
-      console.log('API Key from localStorage:', apiKey.substring(0, 10) + '...');
+      console.log('API Key from URL:', apiKey.substring(0, 10) + '...');
 
       // Create form data
       const formData = new FormData();
