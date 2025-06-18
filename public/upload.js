@@ -39,28 +39,6 @@ document.addEventListener('DOMContentLoaded', () => {
     reader.readAsDataURL(file);
 
     try {
-      // Check if extension is installed
-      if (!chrome.runtime) {
-        showStatus('Error: Extension is not installed', 'error');
-        return;
-      }
-
-      // Get API key from extension
-      const apiKeyResponse = await new Promise((resolve, reject) => {
-        chrome.runtime.sendMessage({ type: 'GET_API_KEY' }, (response) => {
-          if (chrome.runtime.lastError) {
-            reject(new Error(chrome.runtime.lastError.message));
-          } else {
-            resolve(response);
-          }
-        });
-      });
-
-      if (!apiKeyResponse || !apiKeyResponse.apiKey) {
-        showStatus('Error: API key not found', 'error');
-        return;
-      }
-
       showStatus('Uploading and analyzing document...', 'loading');
 
       // Create form data
@@ -74,7 +52,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const uploadResponse = await fetch(`/upload?token=${token}`, {
         method: 'POST',
         headers: {
-          'X-API-Key': apiKeyResponse.apiKey
+          'X-API-Key': localStorage.getItem('apiKey') // Get API key from localStorage
         },
         body: formData,
         signal: controller.signal
@@ -93,19 +71,8 @@ document.addEventListener('DOMContentLoaded', () => {
         throw new Error('Upload failed');
       }
 
-      // Send results back to extension
-      await new Promise((resolve, reject) => {
-        chrome.runtime.sendMessage({
-          type: 'SCAN_RESULTS',
-          results: uploadData.results
-        }, (response) => {
-          if (chrome.runtime.lastError) {
-            reject(new Error(chrome.runtime.lastError.message));
-          } else {
-            resolve(response);
-          }
-        });
-      });
+      // Store results in localStorage
+      localStorage.setItem('scanResults', JSON.stringify(uploadData.results));
       
       showStatus('Analysis complete! You can close this window.', 'success');
     } catch (error) {
