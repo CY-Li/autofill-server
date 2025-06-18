@@ -11,10 +11,10 @@ RUN npm install
 # Copy app source
 COPY . .
 
-# Create uploads directory and set permissions
-RUN mkdir -p uploads && \
-    chown -R node:node uploads && \
-    chmod 755 uploads
+# Create necessary directories and set permissions
+RUN mkdir -p uploads public && \
+    chown -R node:node /app && \
+    chmod -R 755 /app
 
 # Use non-root user
 USER node

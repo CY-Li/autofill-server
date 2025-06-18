@@ -3,24 +3,32 @@ const cors = require('cors');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
+
 const app = express();
+const port = process.env.PORT || 3000;
+
+// Store tokens in memory (in production, use a proper database)
+const validTokens = new Map();
 
 // Enable CORS with specific origin
 app.use(cors({
   origin: ['chrome-extension://*', 'https://autofill-server.zeabur.app'],
   methods: ['GET', 'POST'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-API-Key']
+  allowedHeaders: ['Content-Type', 'X-API-Key']
 }));
 
+app.use(express.json());
+
 // Serve static files
-app.use(express.static('public'));
+app.use(express.static(path.join(__dirname, 'public')));
 
 // Configure multer for file upload
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    const uploadDir = 'uploads/';
+    const uploadDir = path.join(__dirname, 'uploads');
     if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir);
+      fs.mkdirSync(uploadDir, { recursive: true });
     }
     cb(null, uploadDir);
   },
@@ -48,25 +56,32 @@ const upload = multer({
 const validateToken = (req, res, next) => {
   const token = req.query.token;
   if (!token) {
-    return res.status(401).json({ error: 'Token is required' });
+    return res.status(401).json({ message: 'Token is required' });
   }
 
-  // Here you would typically validate the token against a database
-  // For now, we'll just check if it exists and hasn't expired
-  const tokenPath = path.join(__dirname, 'tokens', `${token}.json`);
-  if (!fs.existsSync(tokenPath)) {
-    return res.status(401).json({ error: 'Invalid token' });
+  const tokenData = validTokens.get(token);
+  if (!tokenData) {
+    return res.status(401).json({ message: 'Invalid token' });
   }
 
-  const tokenData = JSON.parse(fs.readFileSync(tokenPath));
-  if (Date.now() > tokenData.expiresAt) {
-    fs.unlinkSync(tokenPath);
-    return res.status(401).json({ error: 'Token has expired' });
+  if (Date.now() > tokenData.expires) {
+    validTokens.delete(token);
+    return res.status(401).json({ message: 'Token has expired' });
   }
 
-  req.token = token;
   next();
 };
+
+// Register token endpoint
+app.post('/register-token', (req, res) => {
+  const { token, expires } = req.body;
+  if (!token || !expires) {
+    return res.status(400).json({ message: 'Token and expiration time are required' });
+  }
+
+  validTokens.set(token, { expires });
+  res.json({ message: 'Token registered successfully' });
+});
 
 // Routes
 app.get('/', (req, res) => {
@@ -78,98 +93,71 @@ app.get('/upload', validateToken, (req, res) => {
 });
 
 app.post('/upload', validateToken, upload.single('file'), async (req, res) => {
-  if (!req.file) {
-    return res.status(400).json({ error: 'No file uploaded' });
-  }
-
   try {
-    // Get API key from extension
+    if (!req.file) {
+      return res.status(400).json({ message: 'No file uploaded' });
+    }
+
     const apiKey = req.headers['x-api-key'];
     if (!apiKey) {
-      return res.status(401).json({ error: 'API key is required' });
+      return res.status(401).json({ message: 'API key is required' });
     }
 
-    // Convert image to base64
-    const base64Image = fs.readFileSync(req.file.path).toString('base64');
+    // Initialize Gemini API
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({ model: 'gemini-pro-vision' });
+
+    // Read file and convert to base64
+    const fileBuffer = fs.readFileSync(req.file.path);
+    const base64Image = fileBuffer.toString('base64');
 
     // Call Gemini API
-    const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-pro-vision:generateContent', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`
-      },
-      body: JSON.stringify({
-        contents: [{
-          parts: [{
-            text: "Analyze this document and extract all text fields in JSON format. Include field names and their values."
-          }, {
-            inline_data: {
-              mime_type: req.file.mimetype,
-              data: base64Image
-            }
-          }]
-        }]
-      })
-    });
-
-    if (!response.ok) {
-      throw new Error(`API request failed: ${response.statusText}`);
-    }
-
-    const data = await response.json();
-    
-    if (data.candidates && data.candidates[0].content) {
-      const results = JSON.parse(data.candidates[0].content.parts[0].text);
-      
-      // Clean up uploaded file
-      fs.unlinkSync(req.file.path);
-      
-      // Remove used token
-      const tokenPath = path.join(__dirname, 'tokens', `${req.token}.json`);
-      if (fs.existsSync(tokenPath)) {
-        fs.unlinkSync(tokenPath);
+    const result = await model.generateContent([
+      'Analyze this document and extract all text content. Return the results in a structured format.',
+      {
+        inlineData: {
+          mimeType: req.file.mimetype,
+          data: base64Image
+        }
       }
+    ]);
 
-      res.json({ 
-        success: true, 
-        results: results 
-      });
-    } else {
-      throw new Error('Invalid response from API');
-    }
+    const response = await result.response;
+    const text = response.text();
+
+    // Clean up uploaded file
+    fs.unlinkSync(req.file.path);
+
+    // Delete token after successful upload
+    validTokens.delete(req.query.token);
+
+    res.json({
+      success: true,
+      results: text
+    });
   } catch (error) {
     console.error('Error:', error);
-    
-    // Clean up uploaded file if it exists
+    // Clean up file if it exists
     if (req.file && fs.existsSync(req.file.path)) {
       fs.unlinkSync(req.file.path);
     }
-    
-    res.status(500).json({ 
-      error: 'Something went wrong!',
-      message: error.message 
+    res.status(500).json({
+      success: false,
+      message: error.message || 'An error occurred during processing'
     });
   }
 });
 
 // Error handling middleware
 app.use((err, req, res, next) => {
-  console.error(err.stack);
-  
-  // Clean up uploaded file if it exists
-  if (req.file && fs.existsSync(req.file.path)) {
-    fs.unlinkSync(req.file.path);
-  }
-  
-  res.status(500).json({ 
-    error: 'Something went wrong!',
-    message: err.message 
+  console.error('Error:', err);
+  res.status(500).json({
+    success: false,
+    message: err.message || 'An error occurred'
   });
 });
 
 // Start server
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
+app.listen(port, () => {
+  console.log(`Server is running on port ${port}`);
 }); 
