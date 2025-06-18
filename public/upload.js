@@ -41,6 +41,15 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       showStatus('Uploading and analyzing document...', 'loading');
 
+      // Get API key from localStorage
+      const apiKey = localStorage.getItem('apiKey');
+      if (!apiKey) {
+        throw new Error('API key not found. Please save your API key in the extension first.');
+      }
+
+      // Log API key for debugging (remove in production)
+      console.log('API Key from localStorage:', apiKey.substring(0, 10) + '...');
+
       // Create form data
       const formData = new FormData();
       formData.append('file', file);
@@ -52,7 +61,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const uploadResponse = await fetch(`/upload?token=${token}`, {
         method: 'POST',
         headers: {
-          'X-API-Key': localStorage.getItem('apiKey') // Get API key from localStorage
+          'X-API-Key': apiKey
         },
         body: formData,
         signal: controller.signal

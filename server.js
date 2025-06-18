@@ -3,7 +3,6 @@ const cors = require('cors');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
-const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -103,27 +102,51 @@ app.post('/upload', validateToken, upload.single('file'), async (req, res) => {
       return res.status(401).json({ message: 'API key is required' });
     }
 
-    // Initialize Gemini API
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+    // Log API key for debugging (remove in production)
+    console.log('API Key received:', apiKey.substring(0, 10) + '...');
 
     // Read file and convert to base64
     const fileBuffer = fs.readFileSync(req.file.path);
     const base64Image = fileBuffer.toString('base64');
 
-    // Call Gemini API
-    const result = await model.generateContent([
-      'Analyze this document and extract all text content. Return the results in a structured format.',
-      {
-        inlineData: {
-          mimeType: req.file.mimetype,
-          data: base64Image
-        }
-      }
-    ]);
+    // Call Gemini API using REST
+    const geminiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        contents: [
+          {
+            parts: [
+              {
+                text: "Analyze this document and extract all text content. Return the results in a structured format."
+              },
+              {
+                inline_data: {
+                  mime_type: req.file.mimetype,
+                  data: base64Image
+                }
+              }
+            ]
+          }
+        ]
+      })
+    });
 
-    const response = await result.response;
-    const text = response.text();
+    if (!geminiResponse.ok) {
+      const errorData = await geminiResponse.json();
+      console.error('Gemini API Error:', errorData);
+      throw new Error(`Gemini API error: ${errorData.error?.message || geminiResponse.statusText}`);
+    }
+
+    const geminiData = await geminiResponse.json();
+    
+    if (!geminiData.candidates || !geminiData.candidates[0] || !geminiData.candidates[0].content) {
+      throw new Error('Invalid response from Gemini API');
+    }
+
+    const text = geminiData.candidates[0].content.parts[0].text;
 
     // Clean up uploaded file
     fs.unlinkSync(req.file.path);
