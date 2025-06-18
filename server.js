@@ -187,7 +187,49 @@ app.post('/upload', validateToken, upload.single('file'), async (req, res) => {
           {
             parts: [
               {
-                text: "Analyze this document and extract all text content. Return the results in a structured format."
+                text: `Analyze this document and extract all information in a structured JSON format. 
+                
+Please return the results as a valid JSON object with the following structure:
+{
+  "documentType": "type of document (e.g., ID card, invoice, receipt, form, etc.)",
+  "personalInfo": {
+    "fullName": "extracted full name if found",
+    "firstName": "first name if found",
+    "lastName": "last name if found",
+    "dateOfBirth": "date of birth if found"
+  },
+  "contactInfo": {
+    "email": "email address if found",
+    "phone": "phone number if found",
+    "mobile": "mobile number if found"
+  },
+  "addressInfo": {
+    "street": "street address if found",
+    "city": "city if found",
+    "state": "state/province if found",
+    "zipCode": "zip/postal code if found",
+    "country": "country if found"
+  },
+  "financialInfo": {
+    "amount": "amount if found",
+    "currency": "currency if found",
+    "accountNumber": "account number if found",
+    "cardNumber": "card number if found (masked for security)"
+  },
+  "dates": {
+    "issueDate": "issue date if found",
+    "expiryDate": "expiry date if found",
+    "createdDate": "created date if found"
+  },
+  "otherInfo": {
+    "documentNumber": "document number if found",
+    "organization": "organization/company if found",
+    "notes": "any other relevant information"
+  },
+  "rawText": "complete extracted text as fallback"
+}
+
+Only include fields that are actually found in the document. If a field is not found, omit it from the JSON. Ensure the response is valid JSON that can be parsed.`
               },
               {
                 inline_data: {
@@ -213,7 +255,25 @@ app.post('/upload', validateToken, upload.single('file'), async (req, res) => {
       throw new Error('Invalid response from Gemini API');
     }
 
-    const text = geminiData.candidates[0].content.parts[0].text;
+    let text = geminiData.candidates[0].content.parts[0].text;
+    
+    // Try to parse the response as JSON
+    let parsedResults;
+    try {
+      // Clean up the response text (remove markdown code blocks if present)
+      text = text.replace(/```json\s*/g, '').replace(/```\s*$/g, '').trim();
+      parsedResults = JSON.parse(text);
+    } catch (parseError) {
+      console.log('Failed to parse as JSON, treating as raw text');
+      // If parsing fails, create a structured object with raw text
+      parsedResults = {
+        documentType: "Unknown",
+        rawText: text,
+        otherInfo: {
+          notes: "Raw extracted text (JSON parsing failed)"
+        }
+      };
+    }
 
     // Clean up uploaded file
     fs.unlinkSync(req.file.path);
@@ -229,7 +289,7 @@ app.post('/upload', validateToken, upload.single('file'), async (req, res) => {
     if (ws && ws.readyState === WebSocket.OPEN) {
       const message = JSON.stringify({
         type: 'SCAN_RESULTS',
-        results: text
+        results: parsedResults
       });
       
       console.log('Sending results via WebSocket:', message.substring(0, 100) + '...');
@@ -255,7 +315,7 @@ app.post('/upload', validateToken, upload.single('file'), async (req, res) => {
     if (sse) {
       const message = JSON.stringify({
         type: 'SCAN_RESULTS',
-        results: text
+        results: parsedResults
       });
       
       console.log('Sending results via SSE:', message.substring(0, 100) + '...');
@@ -285,7 +345,7 @@ app.post('/upload', validateToken, upload.single('file'), async (req, res) => {
 
     res.json({
       success: true,
-      results: text
+      results: parsedResults
     });
   } catch (error) {
     console.error('Error:', error);
