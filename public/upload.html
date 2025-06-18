@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Upload Document</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+      background-color: #f8f9fa;
+      color: #212529;
+    }
+    .upload-container {
+      background-color: white;
+      padding: 40px;
+      border-radius: 12px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      text-align: center;
+      transition: transform 0.2s;
+    }
+    .upload-container:hover {
+      transform: translateY(-2px);
+    }
+    h1 {
+      color: #1a73e8;
+      margin-bottom: 30px;
+      font-weight: 600;
+    }
+    .file-input-container {
+      margin: 30px 0;
+    }
+    #fileInput {
+      display: none;
+    }
+    .upload-btn {
+      background-color: #1a73e8;
+      color: white;
+      padding: 14px 28px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 16px;
+      font-weight: 500;
+      transition: all 0.2s;
+      box-shadow: 0 2px 4px rgba(26,115,232,0.2);
+    }
+    .upload-btn:hover {
+      background-color: #1557b0;
+      box-shadow: 0 4px 8px rgba(26,115,232,0.3);
+    }
+    .upload-btn:active {
+      transform: translateY(1px);
+    }
+    #preview {
+      max-width: 100%;
+      margin: 20px 0;
+      border-radius: 8px;
+      display: none;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    #status {
+      margin: 20px 0;
+      padding: 12px;
+      border-radius: 8px;
+      display: none;
+      font-weight: 500;
+    }
+    .status-success {
+      background-color: #e6f4ea;
+      color: #137333;
+      border: 1px solid #137333;
+    }
+    .status-error {
+      background-color: #fce8e6;
+      color: #c5221f;
+      border: 1px solid #c5221f;
+    }
+    .status-loading {
+      background-color: #e8f0fe;
+      color: #1a73e8;
+      border: 1px solid #1a73e8;
+    }
+  </style>
+</head>
+<body>
+  <div class="upload-container">
+    <h1>Upload Document</h1>
+    <div class="file-input-container">
+      <input type="file" id="fileInput" accept="image/*">
+      <button class="upload-btn" onclick="document.getElementById('fileInput').click()">
+        Choose File
+      </button>
+    </div>
+    <div id="status"></div>
+    <img id="preview">
+  </div>
+  <script src="upload.js"></script>
+</body>
+</html> 
