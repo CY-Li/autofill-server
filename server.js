@@ -3,12 +3,34 @@ const cors = require('cors');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const WebSocket = require('ws');
 
 const app = express();
 const port = process.env.PORT || 3000;
 
+// Create WebSocket server
+const wss = new WebSocket.Server({ noServer: true });
+
 // Store tokens in memory (in production, use a proper database)
 const validTokens = new Map();
+
+// Store WebSocket connections by token
+const wsConnections = new Map();
+
+// WebSocket connection handling
+wss.on('connection', (ws, request) => {
+  const token = new URL(request.url, 'http://localhost').searchParams.get('token');
+  
+  if (token) {
+    wsConnections.set(token, ws);
+    console.log(`WebSocket connected for token: ${token}`);
+    
+    ws.on('close', () => {
+      wsConnections.delete(token);
+      console.log(`WebSocket disconnected for token: ${token}`);
+    });
+  }
+});
 
 // Enable CORS with specific origin
 app.use(cors({
@@ -154,6 +176,22 @@ app.post('/upload', validateToken, upload.single('file'), async (req, res) => {
     // Delete token after successful upload
     validTokens.delete(req.query.token);
 
+    // Send results via WebSocket if connection exists
+    const ws = wsConnections.get(req.query.token);
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({
+        type: 'SCAN_RESULTS',
+        results: text
+      }));
+      console.log('Results sent via WebSocket');
+    }
+
+    // Also clean up WebSocket connection
+    if (ws) {
+      wsConnections.delete(req.query.token);
+      ws.close();
+    }
+
     res.json({
       success: true,
       results: text
@@ -180,7 +218,14 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Start server
-app.listen(port, () => {
+// Create HTTP server
+const server = app.listen(port, () => {
   console.log(`Server is running on port ${port}`);
+});
+
+// Attach WebSocket server to HTTP server
+server.on('upgrade', (request, socket, head) => {
+  wss.handleUpgrade(request, socket, head, (ws) => {
+    wss.emit('connection', ws, request);
+  });
 }); 

@@ -81,10 +81,13 @@ document.addEventListener('DOMContentLoaded', () => {
         throw new Error('Upload failed');
       }
 
-      // Store results in localStorage
-      localStorage.setItem('scanResults', JSON.stringify(uploadData.results));
+      showStatus('Upload successful! Results will appear in the extension.', 'success');
       
-      showStatus('Analysis complete! You can close this window.', 'success');
+      // Show a message to close the window
+      setTimeout(() => {
+        showStatus('You can close this window now. Check the extension for results.', 'info');
+      }, 2000);
+      
     } catch (error) {
       console.error('Error:', error);
       if (error.name === 'AbortError') {
