@@ -10,12 +10,12 @@ document.addEventListener('DOMContentLoaded', () => {
   const apiKey = urlParams.get('apiKey');
   
   if (!token) {
-    showStatus('Error: 無效的上傳連結', 'error');
+    showStatus('無效的上傳連結', 'error');
     return;
   }
 
   if (!apiKey) {
-    showStatus('Error: 請重新輸入API Key後，再次產生上傳連結', 'error');
+    showStatus('請重新輸入API Key後，再次產生上傳連結', 'error');
     return;
   }
 
