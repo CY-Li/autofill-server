@@ -10,30 +10,38 @@ document.addEventListener('DOMContentLoaded', () => {
   const apiKey = urlParams.get('apiKey');
   
   if (!token) {
-    showStatus('Error: Invalid upload link', 'error');
+    showStatus('Error: 無效的上傳連結', 'error');
     return;
   }
 
   if (!apiKey) {
-    showStatus('Error: API key not found in URL', 'error');
+    showStatus('Error: 請重新輸入API Key後，再次產生上傳連結', 'error');
     return;
   }
 
   function showStatus(message, type) {
-    status.textContent = message;
-    status.className = `status-${type}`;
-    status.style.display = 'block';
+    let icon = '';
+    if (type === 'success') icon = '<span class="status-icon">✅</span>';
+    else if (type === 'error') icon = '<span class="status-icon">❌</span>';
+    else if (type === 'loading') icon = '<span class="status-icon">⏳</span>';
+    else if (type === 'info') icon = '<span class="status-icon">ℹ️</span>';
+    status.innerHTML = icon + '<span>' + message + '</span>';
+    status.className = `status status-${type}`;
+    status.style.display = 'flex';
+    // 觸發動畫
+    status.style.opacity = '0';
+    setTimeout(() => { status.style.opacity = '1'; }, 10);
   }
 
   async function handleFile(file) {
     if (!file) return;
     if (!file.type.startsWith('image/')) {
-      showStatus('Please select an image file', 'error');
+      showStatus('請選擇圖片檔案', 'error');
       return;
     }
 
     if (file.size > 5 * 1024 * 1024) {
-      showStatus('File size must be less than 5MB', 'error');
+      showStatus('檔案大小必須小於5MB', 'error');
       return;
     }
 
