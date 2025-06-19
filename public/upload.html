@@ -1,8 +1,11 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-TW">
 <head>
-  <title>Upload Document</title>
+  <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="description" content="自動填寫表單工具 - 上傳影像檔案進行自動表單填寫">
+  <meta name="robots" content="index, follow">
+  <title>自動填寫表單工具 - 上傳影像</title>
   <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5426289278995487"
      crossorigin="anonymous"></script>
   <style>
@@ -158,17 +161,25 @@
       border: 1px solid #ffcdd2;
     }
 
-    /* 廣告區塊樣式 */
+    /* Google AdSense 廣告容器樣式 */
+    .adsbygoogle {
+      display: block !important;
+      margin: 0 auto !important;
+      max-width: 100% !important;
+      height: auto !important;
+    }
+
+    /* 確保廣告容器有明確尺寸 */
     .ad-slot {
-      background: #f3f3f3;
-      border: 1px dashed #bbb;
+      background: transparent;
+      border: none;
       border-radius: 12px;
       margin: 32px auto 0 auto;
       display: flex;
       align-items: center;
       justify-content: center;
       min-height: 120px;
-      min-width: 200px;
+      min-width: 300px;
       max-width: 336px;
       width: 100%;
       color: #888;
@@ -178,6 +189,7 @@
     }
     .ad-slot.banner {
       min-height: 80px;
+      min-width: 320px;
       max-width: 728px;
       margin-top: 40px;
     }
@@ -280,6 +292,11 @@
         width: 100%;
         box-sizing: border-box;
       }
+      /* 手機版廣告尺寸調整 */
+      .ad-slot.banner .adsbygoogle {
+        width: 320px !important;
+        height: 50px !important;
+      }
     }
 
     .upload-header {
@@ -324,7 +341,16 @@
   </header>
   <div class="main-flex">
     <div class="side-ads left">
-      <div class="ad-slot">廣告區塊（桌機/左側，300x250）</div>
+      <div class="ad-slot" aria-label="廣告">
+        <!-- autofill_左側 -->
+        <ins class="adsbygoogle"
+             style="display:block; width:300px; height:250px;"
+             data-ad-client="ca-pub-5426289278995487"
+             data-ad-slot="8047940973"></ins>
+        <script>
+             (adsbygoogle = window.adsbygoogle || []).push({});
+        </script>
+      </div>
     </div>
     <div class="container">
       <h1>上傳影像</h1>
@@ -340,24 +366,58 @@
       <img id="preview">
     </div>
     <div class="side-ads right">
-      <div class="ad-slot">廣告區塊（桌機/右側，300x250）</div>
+      <div class="ad-slot" aria-label="廣告">
+        <!-- autofill_右側 -->
+        <ins class="adsbygoogle"
+             style="display:block; width:300px; height:250px;"
+             data-ad-client="ca-pub-5426289278995487"
+             data-ad-slot="6734859306"></ins>
+        <script>
+             (adsbygoogle = window.adsbygoogle || []).push({});
+        </script>
+      </div>
     </div>
   </div>
-  <!-- 手機版廣告區塊，桌機隱藏 -->
-  <div class="ad-slot mobile-ad" style="display:none; margin: 24px auto 0 auto; max-width: 100%; padding: 0 16px; box-sizing: border-box;">廣告區塊（手機/下方）</div>
   <!-- 頁面底部橫幅廣告 -->
-  <div class="ad-slot banner">廣告區塊（底部橫幅 728x90/320x50）</div>
+  <div class="ad-slot banner" aria-label="廣告">
+    <!-- autofill_底部 -->
+    <ins class="adsbygoogle"
+         style="display:block; width:728px; height:90px;"
+         data-ad-client="ca-pub-5426289278995487"
+         data-ad-slot="6507628594"></ins>
+    <script>
+         (adsbygoogle = window.adsbygoogle || []).push({});
+    </script>
+  </div>
+  
   <script src="upload.js"></script>
   <script>
     // RWD 廣告顯示控制
     function handleAdSlots() {
       const isMobile = window.innerWidth <= 600;
-      document.querySelector('.side-ads.left').style.display = isMobile ? 'none' : 'flex';
-      document.querySelector('.side-ads.right').style.display = isMobile ? 'none' : 'flex';
-      document.querySelector('.mobile-ad').style.display = isMobile ? 'flex' : 'none';
+      const leftAds = document.querySelector('.side-ads.left');
+      const rightAds = document.querySelector('.side-ads.right');
+      
+      if (isMobile) {
+        leftAds.style.display = 'none';
+        rightAds.style.display = 'none';
+      } else {
+        leftAds.style.display = 'flex';
+        rightAds.style.display = 'flex';
+      }
     }
-    window.addEventListener('resize', handleAdSlots);
-    window.addEventListener('DOMContentLoaded', handleAdSlots);
+
+    // 頁面載入完成後初始化
+    window.addEventListener('DOMContentLoaded', function() {
+      handleAdSlots();
+    });
+
+    // 視窗大小改變時重新處理
+    let resizeTimer;
+    window.addEventListener('resize', function() {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(handleAdSlots, 250);
+    });
   </script>
 </body>
 </html> 
