@@ -65,7 +65,7 @@ wss.on('connection', (ws, request) => {
 
 // Enable CORS with specific origin
 app.use(cors({
-  origin: ['chrome-extension://*', 'https://autofill-server.zeabur.app'],
+  origin: ['chrome-extension://*', 'https://autofill.doc-converter.top'],
   methods: ['GET', 'POST'],
   allowedHeaders: ['Content-Type', 'X-API-Key']
 }));
