@@ -10,7 +10,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const apiKey = urlParams.get('apiKey');
   
   if (!token) {
-    showStatus('無效的上傳連結', 'error');
+    showStatus('請先至Chrome線上應用程式商店下載Autofill | 自動填寫表單工具，並產生上傳連結', 'error');
     return;
   }
 
@@ -54,7 +54,7 @@ document.addEventListener('DOMContentLoaded', () => {
     reader.readAsDataURL(file);
 
     try {
-      showStatus('Uploading and analyzing document...', 'loading');
+      showStatus('影像辨識中...', 'loading');
 
       // Log API key for debugging (remove in production)
       console.log('API Key from URL:', apiKey.substring(0, 10) + '...');
@@ -89,11 +89,11 @@ document.addEventListener('DOMContentLoaded', () => {
         throw new Error('Upload failed');
       }
 
-      showStatus('Upload successful! Results will appear in the extension.', 'success');
+      showStatus('影像辨識完成! 結果將顯示在擴充功能中。', 'success');
       
       // Show a message to close the window
       setTimeout(() => {
-        showStatus('You can close this window now. Check the extension for results.', 'info');
+        showStatus('您可以關閉此視窗了。請至擴充功能中查看結果。', 'info');
         // Auto-close window after 3 seconds
         setTimeout(() => {
           window.close();
@@ -103,7 +103,7 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (error) {
       console.error('Error:', error);
       if (error.name === 'AbortError') {
-        showStatus('Error: Upload timed out. Please try again.', 'error');
+        showStatus('Error: 影像辨識超時。請再試一次。', 'error');
       } else {
         showStatus(`Error: ${error.message}`, 'error');
       }
