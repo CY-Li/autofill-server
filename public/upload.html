@@ -333,6 +333,82 @@
         margin-right: 4px;
       }
     }
+
+    .chrome-ext-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      background: linear-gradient(135deg, #fff 0%, #e3e3e3 100%);
+      color: #222;
+      border: 2px solid #667eea;
+      border-radius: 8px;
+      font-weight: 700;
+      font-size: 1.1rem;
+      padding: 12px 24px;
+      margin-bottom: 24px;
+      text-decoration: none;
+      transition: box-shadow 0.2s, border 0.2s;
+      box-shadow: 0 2px 8px rgba(102,126,234,0.08);
+    }
+    .chrome-ext-btn:hover {
+      border: 2px solid #764ba2;
+      box-shadow: 0 4px 16px rgba(118,75,162,0.12);
+    }
+    .chrome-logo {
+      width: 28px;
+      height: 28px;
+    }
+    .share-block {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 32px 0 0 0;
+      font-size: 1rem;
+      color: #444;
+      flex-wrap: wrap;
+    }
+    .share-btn {
+      background: #f5f5f5;
+      border: none;
+      border-radius: 50%;
+      width: 38px;
+      height: 38px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: background 0.2s, box-shadow 0.2s;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+      margin-right: 2px;
+      padding: 0;
+    }
+    .share-btn:hover {
+      background: #e0e7ff;
+    }
+    .share-btn img {
+      width: 22px;
+      height: 22px;
+    }
+    @media (max-width: 600px) {
+      .chrome-ext-btn {
+        font-size: 1rem;
+        padding: 10px 10px;
+        margin-bottom: 16px;
+      }
+      .share-block {
+        font-size: 0.95rem;
+        margin: 24px 0 0 0;
+      }
+      .share-btn {
+        width: 34px;
+        height: 34px;
+      }
+      .share-btn img {
+        width: 18px;
+        height: 18px;
+      }
+    }
   </style>
 </head>
 <body>
@@ -353,6 +429,10 @@
       </div>
     </div>
     <div class="container">
+      <!-- Chrome 擴充功能下載按鈕 -->
+      <a href="https://chromewebstore.google.com/detail/ioilemodifiifcodijgkpgambnfbdlji?utm_source=item-share-cb" target="_blank" rel="noopener noreferrer" class="chrome-ext-btn">
+        <img src="https://www.google.com/chrome/static/images/favicons/favicon-96x96.png" alt="Chrome Logo" class="chrome-logo"> 下載 Chrome 擴充功能
+      </a>
       <h1>上傳影像</h1>
       <div class="drag-area">
         <h3>拖曳影像檔案至此處</h3>
@@ -364,6 +444,14 @@
       </button>
       <div id="status"></div>
       <img id="preview">
+      <!-- 分享區塊 -->
+      <div class="share-block">
+        <span>分享這個工具：</span>
+        <button class="share-btn" id="copyLinkBtn" title="複製連結"><img src="https://img.icons8.com/ios-glyphs/24/000000/link--v1.png" alt="複製連結"></button>
+        <a class="share-btn" href="https://www.facebook.com/sharer/sharer.php?u=" target="_blank" id="fbShare" title="分享到 Facebook"><img src="https://cdn.simpleicons.org/facebook/1877f2/ffffff" alt="Facebook" style="border-radius: 50%; background: white;" /></a>
+        <a class="share-btn" href="https://social-plugins.line.me/lineit/share?url=" target="_blank" id="lineShare" title="分享到 Line"><img src="https://cdn.simpleicons.org/line/00c300/ffffff" alt="Line" style="border-radius: 50%; background: white;" /></a>
+        <a class="share-btn" href="https://twitter.com/intent/tweet?url=" target="_blank" id="xShare" title="分享到 X"><img src="https://cdn.simpleicons.org/x/000000/ffffff" alt="X" style="border-radius: 50%; background: white;" /></a>
+      </div>
     </div>
     <div class="side-ads right">
       <div class="ad-slot" aria-label="廣告">
@@ -470,6 +558,28 @@
   ONEAD_pubs.push(_ONEAD);
 </script>
 <script type="text/javascript" src = "https://ad-specs.guoshipartners.com/static/js/onead-lib.min.js"></script>
+
+<script>
+// 分享功能 JS
+(function() {
+  var pageUrl = window.location.href;
+  // 設定社群分享連結
+  document.getElementById('fbShare').href = 'https://www.facebook.com/sharer/sharer.php?u=' + encodeURIComponent(pageUrl);
+  document.getElementById('lineShare').href = 'https://social-plugins.line.me/lineit/share?url=' + encodeURIComponent(pageUrl);
+  document.getElementById('xShare').href = 'https://twitter.com/intent/tweet?url=' + encodeURIComponent(pageUrl);
+  // 複製連結
+  document.getElementById('copyLinkBtn').onclick = function() {
+    navigator.clipboard.writeText(pageUrl).then(function() {
+      document.getElementById('copyLinkBtn').classList.add('copied');
+      document.getElementById('copyLinkBtn').title = '已複製!';
+      setTimeout(function() {
+        document.getElementById('copyLinkBtn').classList.remove('copied');
+        document.getElementById('copyLinkBtn').title = '複製連結';
+      }, 1200);
+    });
+  };
+})();
+</script>
 
 </body>
 </html> 
